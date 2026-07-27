@@ -23,6 +23,10 @@ The `Build Runtime Release Assets` workflow checks out the private
 Actions secret, validates the selected source revision, and builds signed
 runtime archives for macOS arm64, macOS x64, Windows x64, and Linux x64. Only
 verified binary release artifacts leave the private source checkout.
+After verification, the workflow uploads the runtime assets to the
+`kition-dev` draft Release, stages the same assets on the installer draft in
+`KitionAI/kition`, and publishes the runtime Release. Large binaries do not
+round-trip through a maintainer workstation.
 
 Maintainers dispatch the complete guarded release flow from `KitionAI/kition`
 with `pnpm release:github <version>`.

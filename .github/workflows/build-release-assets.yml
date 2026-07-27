@@ -27,7 +27,7 @@ on:
         type: string
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: runtime-release-${{ inputs.release_tag }}
@@ -362,3 +362,87 @@ jobs:
           path: runtime-source/dist/release/*
           if-no-files-found: error
           retention-days: 1
+
+      - name: Upload assets to runtime draft Release
+        shell: bash
+        working-directory: runtime-source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+          draft="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" --jq '.draft')"
+          if [[ "$draft" != "true" ]]; then
+            echo "Runtime Release $RELEASE_TAG must be a draft" >&2
+            exit 1
+          fi
+          mapfile -d '' files < <(find dist/release -maxdepth 1 -type f -print0 | sort -z)
+          gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --clobber "${files[@]}"
+
+      - name: Upload assets to installer draft Release
+        shell: bash
+        working-directory: runtime-source
+        env:
+          GH_TOKEN: ${{ secrets.KITION_PUBLIC_RELEASE_TOKEN }}
+          PUBLIC_REPOSITORY: ${{ inputs.public_repository }}
+          RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "KITION_PUBLIC_RELEASE_TOKEN is required" >&2
+            exit 1
+          fi
+          draft="$(gh api "repos/$PUBLIC_REPOSITORY/releases/tags/$RELEASE_TAG" --jq '.draft')"
+          if [[ "$draft" != "true" ]]; then
+            echo "Installer Release $RELEASE_TAG must be a draft" >&2
+            exit 1
+          fi
+          mapfile -d '' files < <(find dist/release -maxdepth 1 -type f -print0 | sort -z)
+          gh release upload "$RELEASE_TAG" --repo "$PUBLIC_REPOSITORY" --clobber "${files[@]}"
+
+      - name: Verify staged installer assets
+        shell: bash
+        working-directory: runtime-source
+        env:
+          GH_TOKEN: ${{ secrets.KITION_PUBLIC_RELEASE_TOKEN }}
+          PUBLIC_REPOSITORY: ${{ inputs.public_repository }}
+          RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+          assets="$(gh api "repos/$PUBLIC_REPOSITORY/releases/tags/$RELEASE_TAG" --jq '.assets[].name')"
+          while IFS= read -r file; do
+            name="$(basename "$file")"
+            if ! grep -Fxq "$name" <<<"$assets"; then
+              echo "Missing staged installer asset: $name" >&2
+              exit 1
+            fi
+          done < <(find dist/release -maxdepth 1 -type f -print | sort)
+
+      - name: Verify and publish runtime Release
+        shell: bash
+        working-directory: runtime-source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          set -euo pipefail
+          release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG")"
+          if [[ "$(jq -r '.draft' <<<"$release_json")" != "true" ]]; then
+            echo "Runtime Release $RELEASE_TAG must remain a draft until verification completes" >&2
+            exit 1
+          fi
+          assets="$(jq -r '.assets[].name' <<<"$release_json")"
+          while IFS= read -r file; do
+            name="$(basename "$file")"
+            if ! grep -Fxq "$name" <<<"$assets"; then
+              echo "Missing runtime Release asset: $name" >&2
+              exit 1
+            fi
+          done < <(find dist/release -maxdepth 1 -type f -print | sort)
+          prerelease=false
+          if [[ "$VERSION" == *-* ]]; then prerelease=true; fi
+          gh release edit "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft=false \
+            --prerelease="$prerelease"
