@@ -27,7 +27,7 @@ on:
         type: string
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: runtime-release-${{ inputs.release_tag }}
@@ -367,7 +367,7 @@ jobs:
         shell: bash
         working-directory: runtime-source
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.KITION_PUBLIC_RELEASE_TOKEN }}
           RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
         run: |
           set -euo pipefail
@@ -427,7 +427,7 @@ jobs:
         shell: bash
         working-directory: runtime-source
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.KITION_PUBLIC_RELEASE_TOKEN }}
           RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
           VERSION: ${{ needs.validate.outputs.version }}
         run: |
