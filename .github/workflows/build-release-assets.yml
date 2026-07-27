@@ -371,7 +371,9 @@ jobs:
           RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
         run: |
           set -euo pipefail
-          draft="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" --jq '.draft')"
+          release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq \
+            "map(select(.tag_name == \"$RELEASE_TAG\")) | if length == 1 then .[0] else error(\"Expected one runtime Release\") end")"
+          draft="$(jq -r '.draft' <<<"$release_json")"
           if [[ "$draft" != "true" ]]; then
             echo "Runtime Release $RELEASE_TAG must be a draft" >&2
             exit 1
@@ -392,7 +394,9 @@ jobs:
             echo "KITION_PUBLIC_RELEASE_TOKEN is required" >&2
             exit 1
           fi
-          draft="$(gh api "repos/$PUBLIC_REPOSITORY/releases/tags/$RELEASE_TAG" --jq '.draft')"
+          release_json="$(gh api "repos/$PUBLIC_REPOSITORY/releases?per_page=100" --jq \
+            "map(select(.tag_name == \"$RELEASE_TAG\")) | if length == 1 then .[0] else error(\"Expected one installer Release\") end")"
+          draft="$(jq -r '.draft' <<<"$release_json")"
           if [[ "$draft" != "true" ]]; then
             echo "Installer Release $RELEASE_TAG must be a draft" >&2
             exit 1
@@ -409,7 +413,8 @@ jobs:
           RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
         run: |
           set -euo pipefail
-          assets="$(gh api "repos/$PUBLIC_REPOSITORY/releases/tags/$RELEASE_TAG" --jq '.assets[].name')"
+          assets="$(gh api "repos/$PUBLIC_REPOSITORY/releases?per_page=100" --jq \
+            "map(select(.tag_name == \"$RELEASE_TAG\")) | if length == 1 then .[0].assets[].name else error(\"Expected one installer Release\") end")"
           while IFS= read -r file; do
             name="$(basename "$file")"
             if ! grep -Fxq "$name" <<<"$assets"; then
@@ -427,7 +432,8 @@ jobs:
           VERSION: ${{ needs.validate.outputs.version }}
         run: |
           set -euo pipefail
-          release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG")"
+          release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq \
+            "map(select(.tag_name == \"$RELEASE_TAG\")) | if length == 1 then .[0] else error(\"Expected one runtime Release\") end")"
           if [[ "$(jq -r '.draft' <<<"$release_json")" != "true" ]]; then
             echo "Runtime Release $RELEASE_TAG must remain a draft until verification completes" >&2
             exit 1
