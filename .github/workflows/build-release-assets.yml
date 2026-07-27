@@ -50,7 +50,7 @@ jobs:
         with:
           repository: ${{ env.RUNTIME_SOURCE_REPOSITORY }}
           ref: ${{ inputs.runtime_ref }}
-          ssh-key: ${{ secrets.KITION_RUNTIME_DEPLOY_KEY }}
+          token: ${{ secrets.KITION_RUNTIME_READ_TOKEN }}
           persist-credentials: false
           path: runtime-source
 
@@ -141,7 +141,7 @@ jobs:
         with:
           repository: ${{ env.RUNTIME_SOURCE_REPOSITORY }}
           ref: ${{ needs.validate.outputs.runtime_commit }}
-          ssh-key: ${{ secrets.KITION_RUNTIME_DEPLOY_KEY }}
+          token: ${{ secrets.KITION_RUNTIME_READ_TOKEN }}
           persist-credentials: false
           path: runtime-source
 
@@ -272,7 +272,7 @@ jobs:
         with:
           repository: ${{ env.RUNTIME_SOURCE_REPOSITORY }}
           ref: ${{ needs.validate.outputs.runtime_commit }}
-          ssh-key: ${{ secrets.KITION_RUNTIME_DEPLOY_KEY }}
+          token: ${{ secrets.KITION_RUNTIME_READ_TOKEN }}
           persist-credentials: false
           path: runtime-source
 

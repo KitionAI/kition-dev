@@ -19,10 +19,10 @@ each platform archive.
 ## Release automation
 
 The `Build Runtime Release Assets` workflow checks out the private
-`KitionAI/kition-runtime` repository with a read-only deploy key, validates the
-selected source revision, and builds signed runtime archives for macOS arm64,
-macOS x64, Windows x64, and Linux x64. Only verified binary release artifacts
-leave the private source checkout.
+`KitionAI/kition-runtime` repository with a credential stored only as an
+Actions secret, validates the selected source revision, and builds signed
+runtime archives for macOS arm64, macOS x64, Windows x64, and Linux x64. Only
+verified binary release artifacts leave the private source checkout.
 
 Maintainers dispatch the complete guarded release flow from `KitionAI/kition`
 with `pnpm release:github <version>`.
